@@ -1,39 +1,113 @@
+# Treino API
 
-## 1. Pré-requisitos
-- Acesso a uma VM com Docker instalado (ex: Azure VM com Ubuntu ou Alma Linux).
+API REST para registro de treinos físicos, desenvolvida com Java 17 e Spring Boot. Permite criar, listar, atualizar e deletar registros de treino, com suporte a busca por modalidade e faixa de duração. O banco de dados MySQL e a API rodam em containers Docker isolados em rede bridge, com persistência via volume nomeado.
 
+---
 
-- Portas 8080 (API) e 3306 (MySQL) liberadas no grupo de segurança da rede (NSG).
+## Pré-requisitos
 
+- [Docker](https://www.docker.com/) instalado e em execução
+- Git
 
-## 2. Preparação do Ambiente
-- Clone o repositório da aplicação: git clone [https://github.com/Mariinoue/treino-api.git](https://github.com/Mariinoue/treino-api.git).
+---
 
+## Como executar
 
-- Acesse a pasta do projeto: cd treino-api.
+### 1. Clone o repositório
 
-
-## 3. Execução dos Containers
-- Rede e Volume: Execute os comandos de criação da rede treino-net e do volume mysql-treino-vol para garantir que os containers possam se comunicar e que os dados não sejam perdidos ao reiniciar o container.
-
-
-- Banco de Dados: Inicie o container do MySQL utilizando a imagem mysql:8.0. Certifique-se de definir as variáveis de ambiente para o banco treinodb e o usuário treino_user.
-
-
-- API: Inicie o container da API utilizando a imagem maven. O comando montará o código fonte local dentro do container, compilará o projeto e iniciará o servidor na porta 8080.
+```bash
+git clone https://github.com/Mariinoue/treino-api.git
+cd treino-api
+```
 
 
-* Importante: A variável SPRING_DATASOURCE_URL deve apontar para o nome do container do banco (mysql-RM565834) e não para localhost.
+### MySQL Local - Porta 3306 em uso
+
+Se você tiver o MySQL instalado localmente, a porta 3306 pode estar ocupada. Verifique com:
+
+```bash
+netstat -ano | findstr :3306
+```
+
+Se aparecer algum processo, pare o serviço MySQL local antes de subir os containers:
+
+```bash
+# Windows (PowerShell como Administrador)
+net stop MySQL80
+
+# Para reativar depois
+net start MySQL80
+```
 
 
-## 4. Verificação
-- Verifique se os containers estão rodando com docker ps.
 
+### 2. Suba os containers (Script Bash)
 
-- Acompanhe a subida da aplicação com docker logs -f api-RM565834.
+```bash
+# Rede e volume
+docker network create treino-net
+docker volume create mysql-treino-vol
 
+# Banco de dados (MySQL 8.0)
+docker run --name mysql-RM565834 -d \
+  --network treino-net \
+  -p 3306:3306 \
+  -v mysql-treino-vol:/var/lib/mysql \
+  -e MYSQL_DATABASE=treinodb \
+  -e MYSQL_USER=treino_user \
+  -e MYSQL_PASSWORD=treino_pass \
+  -e MYSQL_ROOT_PASSWORD=root_pass \
+  mysql:8.0
 
-## 5. Testando o CRUD
-Utilize o comando curl diretamente no terminal da VM para validar as operações de INSERT, UPDATE, DELETE e GET no endpoint http://localhost:8080/api/treinos.
+# API
+docker run --name api-RM565834 -d \
+  --network treino-net \
+  -p 8080:8080 \
+  -v $(pwd):/app \
+  -w /app \
+  -e SPRING_DATASOURCE_URL=jdbc:mysql://mysql-RM565834:3306/treinodb \
+  -e SPRING_DATASOURCE_USERNAME=treino_user \
+  -e SPRING_DATASOURCE_PASSWORD=treino_pass \
+  maven:3.9-eclipse-temurin-17 \
+  bash -c "mvn clean package -DskipTests -Dproject.build.sourceEncoding=UTF-8 && java -jar target/*.jar"
+```
+
+### 3. Aguarde a API inicializar
+
+A primeira execução baixa as dependências Maven — pode levar alguns minutos. Acompanhe o log:
+
+```bash
+docker logs -f api-RM565834
+```
+
+Aguarde a mensagem `Started TreinoApiApplication in X seconds`.
+
+---
+
+## Testando o CRUD
+
+Base URL: `http://localhost:8080/api/treinos`
+
+```bash
+# INSERT — criar treino
+curl -X POST http://localhost:8080/api/treinos \
+  -H "Content-Type: application/json" \
+  -d '{"modalidade": "Corrida", "duracao": 45.0, "dataTreino": "2026-04-29T15:30:00"}'
+
+# READ — listar todos
+curl http://localhost:8080/api/treinos
+
+# READ — buscar por ID
+curl http://localhost:8080/api/treinos/1
+
+# UPDATE — atualizar treino
+curl -X PUT http://localhost:8080/api/treinos/1 \
+  -H "Content-Type: application/json" \
+  -d '{"modalidade": "Musculação", "duracao": 60.0, "dataTreino": "2026-04-29T17:00:00"}'
+
+# DELETE — deletar treino
+curl -X DELETE http://localhost:8080/api/treinos/1
+```
+
 
 
