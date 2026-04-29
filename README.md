@@ -84,30 +84,6 @@ Aguarde a mensagem `Started TreinoApiApplication in X seconds`.
 
 ---
 
-## Testando o CRUD
-
-Base URL: `http://localhost:8080/api/treinos`
-
-```bash
-# INSERT — criar treino
-curl -X POST http://localhost:8080/api/treinos \
-  -H "Content-Type: application/json" \
-  -d '{"modalidade": "Corrida", "duracao": 45.0, "dataTreino": "2026-04-29T15:30:00"}'
-
-# READ — listar todos
-curl http://localhost:8080/api/treinos
-
-# READ — buscar por ID
-curl http://localhost:8080/api/treinos/1
-
-# UPDATE — atualizar treino
-curl -X PUT http://localhost:8080/api/treinos/1 \
-  -H "Content-Type: application/json" \
-  -d '{"modalidade": "Musculação", "duracao": 60.0, "dataTreino": "2026-04-29T17:00:00"}'
-
-# DELETE — deletar treino
-curl -X DELETE http://localhost:8080/api/treinos/1
-```
 
 
 
